@@ -128,14 +128,31 @@ class CourierToolRuntime(private val config: CourierConfig) {
         }
         val bytes = byLines.toByteArray(Charsets.UTF_8)
         if (bytes.size <= config.outputByteLimit) return byLines
-        // 字节超限：按字符安全截断（不撕裂多字节字符）
-        var cut = config.outputByteLimit
-        while (cut > 0 && cut < byLines.length &&
-            (byLines[cut - 1].code and 0xC0) == 0x80
-        ) {
-            cut--
+        // 字节超限：按字节安全截断（不撕裂多字节字符；代理对按码点 4 字节计）
+        var acc = 0
+        var charCut = 0
+        var idx = 0
+        while (idx < byLines.length) {
+            val c = byLines[idx]
+            val sz: Int
+            val advance: Int
+            if (c.isHighSurrogate() && idx + 1 < byLines.length && byLines[idx + 1].isLowSurrogate()) {
+                sz = 4
+                advance = 2
+            } else {
+                sz = when {
+                    c.code < 0x80 -> 1
+                    c.code < 0x800 -> 2
+                    else -> 3
+                }
+                advance = 1
+            }
+            if (acc + sz > config.outputByteLimit) break
+            acc += sz
+            idx += advance
+            charCut = idx
         }
-        val head = byLines.take(cut.coerceAtMost(byLines.length))
+        val head = byLines.take(charCut)
         val total = bytes.size
         return "$head\n[output capped at $config.outputByteLimit bytes of $total — remainder elided]"
     }

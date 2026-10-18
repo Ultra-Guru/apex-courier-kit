@@ -86,7 +86,7 @@ class CourierPlanGate(
         val stepsBlock = Regex("(?ims)^\\s*steps\\s*[:：]?\\s*\\n(.*?)(?=\\n\\s*risks\\s*[:：]|\\z)")
             .find(text)?.groupValues?.get(1)
             ?: return null
-        val steps = Regex("(?m)^\\s*(?:\\d+[.、)]|[-*])\\s*(.+)$")
+        val steps = Regex("(?m)^\\s*(?:\\d+[.、)]|[-*])\\s*(\\S.*)$")
             .findAll(stepsBlock)
             .mapIndexed { index, m ->
                 val raw = m.groupValues[1].trim()
