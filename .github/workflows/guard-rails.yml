@@ -1,0 +1,91 @@
+name: Guard Rails
+
+# ═════════════════════════════════════════════════════════════════════════════
+# apex-courier-kit 护栏双查（同构 apex-loom-kit / apex-standard-kit）：
+#   1. vocabulary-scan：禁用词零容忍——本库为避让上游项目词汇的改名衍生，
+#      源码 / 文档 / 工作流 / 提交相关文件中不得出现该词汇的任何大小写与
+#      分隔符形态（拼接构造 pattern，本文件自身不出现字面量）。
+#   2. api-surface：公共 API 面快照——每次提交导出公开类型清单工件，
+#      破坏性演进（类型消失/改名）在 diff 中一目了然（信息性，不阻断）。
+# ═════════════════════════════════════════════════════════════════════════════
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: guard-rails-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vocabulary-scan:
+    name: Guard Rails (vocabulary)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Scan sources for forbidden vocabulary
+        run: |
+          set -euo pipefail
+          # 拼接构造禁用词（本脚本自身不出现字面量）
+          WORD_A="open"
+          WORD_B="code"
+          STEM="${WORD_A}${WORD_B}"
+          # 覆盖大小写与常见分隔符形态
+          PATTERNS="${STEM} ${WORD_A}-${WORD_B} ${WORD_A}_${WORD_B} ${WORD_A^}${WORD_B^}"
+          echo "扫描形态: ${PATTERNS}"
+          VIOLATIONS=0
+          for PAT in ${PATTERNS}; do
+            echo "::group::pattern: ${PAT}"
+            # 源码 / 文档 / 构建 / 工作流全量扫描（二进制与 .git 排除）
+            MATCHES=$(grep -rin --include='*.kt' --include='*.kts' --include='*.md' \
+              --include='*.yml' --include='*.yaml' --include='*.properties' \
+              --include='*.toml' --include='*.sh' --include='LICENSE' \
+              "${PAT}" . 2>/dev/null | grep -v '^\./\.git/' || true)
+            if [ -n "${MATCHES}" ]; then
+              echo "${MATCHES}"
+              VIOLATIONS=$((VIOLATIONS + $(echo "${MATCHES}" | wc -l)))
+            fi
+            echo "::endgroup::"
+          done
+          if [ "${VIOLATIONS}" -gt 0 ]; then
+            echo "❌ 禁用词命中 ${VIOLATIONS} 处 —— 本库为改名衍生，词汇合规零容忍"
+            exit 1
+          fi
+          echo "✅ 词汇合规：${PATTERNS} 零命中"
+
+  api-surface:
+    name: Guard Rails (api surface)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Export public API surface
+        run: |
+          set -euo pipefail
+          mkdir -p build/api
+          # 公开类型与顶层可调用成员清单（签名首行口径）
+          {
+            grep -rhE --include='*.kt' '^(public\s+)?(abstract\s+)?(sealed\s+)?(class|interface|object|enum class|fun interface|annotation class)\s+[A-Za-z_]' courier-dispatch/src/main/kotlin || true
+            grep -rhE --include='*.kt' '^(public\s+)?(suspend\s+)?fun\s+[A-Za-z_]' courier-dispatch/src/main/kotlin || true
+            grep -rhE --include='*.kt' '^(public\s+)?(inline\s+)?fun\s+<reified' courier-dispatch/src/main/kotlin || true
+            grep -rhE --include='*.kt' '^(public\s+)?val\s+[A-Za-z_]' courier-dispatch/src/main/kotlin || true
+          } | sed 's/^\s*//' | sort > build/api/surface.txt
+          PUBLIC_TYPES=$(grep -cE '(class|interface|object)\s+[A-Za-z_]' build/api/surface.txt || true)
+          PUBLIC_FUNS=$(grep -cE '^fun' build/api/surface.txt || true)
+          echo "公开类型行: ${PUBLIC_TYPES} / 顶层函数行: ${PUBLIC_FUNS}"
+          head -40 build/api/surface.txt
+
+      - name: Upload API surface snapshot
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-surface-${{ github.sha }}
+          path: build/api/surface.txt
+          retention-days: 30

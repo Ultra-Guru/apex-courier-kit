@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+build/
+/captures
+.kotlin/
+!gradle/wrapper/gradle-wrapper.jar
+.externalNativeBuild
+.cxx
+local.properties
+*.apk
+*.aab
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Python bytecode from the scripts/ gates
+__pycache__/
+*.pyc

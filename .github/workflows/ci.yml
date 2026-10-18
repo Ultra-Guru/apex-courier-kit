@@ -1,0 +1,189 @@
+name: CI
+
+# apex-courier-kit CI —— 两道防线（同构 apex-loom-kit / apex-standard-kit）：
+#   1. build-test：库自身编译 + 单测 + publishToMavenLocal 可发布性
+#   2. consumer-check：跨仓库验证宿主 Android-Guru-Agent 仍能编译（防下游崩）
+#      —— 迁移期 workflow_dispatch 手动触发（宿主 main 尚未消费本库；
+#      宿主信使线 PR 合并后改 push/PR 触发，输入 host-ref 可指定宿主分支）。
+#
+# 宿主消费方式（迁移期 composite build）：宿主 settings.gradle.kts 的条件
+# includeBuild —— 兄弟目录 ../apex-courier-kit 或嵌套子目录 apex-courier-kit
+# 存在时接入，并按坐标 com.apex.courierkit:courier-dispatch 自动替换。本
+# workflow 把两个仓库 checkout 成兄弟 + 嵌套布局，正好命中该条件。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      host-ref:
+        description: '宿主 Android-Guru-Agent 的检查分支（consumer-check 用）'
+        required: false
+        default: 'main'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build & Test (courier-dispatch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build module (compile only first for fast feedback)
+        run: ./gradlew :courier-dispatch:assemble --no-daemon --stacktrace
+
+      # 纯 JVM 测试必须独立跑（courier-dispatch 零 Android 依赖的可执行证明）
+      - name: courier-dispatch pure-JVM tests
+        run: ./gradlew :courier-dispatch:test --no-daemon
+
+      # 可发布性验证：坐标/POM 生成必须完整
+      - name: publishToMavenLocal smoke check
+        run: |
+          ./gradlew publishToMavenLocal --no-daemon
+          VER=$(grep -m1 '^version = "' courier-dispatch/build.gradle.kts | sed 's/version = "//;s/"//')
+          echo "smoke-checking com.apex.courierkit:courier-dispatch:$VER"
+          if ls ~/.m2/repository/com/apex/courierkit/courier-dispatch/$VER/courier-dispatch-$VER.{module,pom} >/dev/null 2>&1; then
+            echo "✅ com.apex.courierkit:courier-dispatch:$VER published to mavenLocal"
+          else
+            echo "❌ com.apex.courierkit:courier-dispatch:$VER missing in mavenLocal"; exit 1
+          fi
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: courier-dispatch/build/reports/tests/
+          retention-days: 7
+
+  consumer-check:
+    name: Consumer Check (host Android-Guru-Agent)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout this repo (sibling layout)
+        uses: actions/checkout@v7
+        with:
+          path: apex-courier-kit
+
+      - name: Checkout host repo (sibling layout)
+        uses: actions/checkout@v7
+        with:
+          repository: Ultra-Guru/Android-Guru-Agent
+          ref: ${{ github.event.inputs.host-ref || 'main' }}
+          path: Android-Guru-Agent
+
+      # ── 宿主兄弟库钉版补齐（browser / standard / workspace / loom 四 kit）──
+      # 宿主 :app 的 composite build 全量接线 —— 按 host 锁定版本检出，
+      # 缺嵌套检出则 :app:compileDebugKotlin 直接解析失败（同宿主 CI 口径）。
+      - name: Read host browser-kit pin
+        id: bkitpin
+        run: |
+          set -euo pipefail
+          cd Android-Guru-Agent
+          PIN=$(head -n 1 gradle/browser-kit.lock 2>/dev/null || true)
+          echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout apex-browser-kit (host composite build, pinned)
+        uses: actions/checkout@v7
+        with:
+          repository: Ultra-Guru/apex-browser-kit
+          ref: ${{ steps.bkitpin.outputs.sha }}
+          path: Android-Guru-Agent/apex-browser-kit
+
+      - name: Read host standard-kit pin
+        id: akitpin
+        run: |
+          set -euo pipefail
+          cd Android-Guru-Agent
+          PIN=$(head -n 1 gradle/standard-kit.lock 2>/dev/null || true)
+          echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout apex-standard-kit (host composite build, pinned)
+        uses: actions/checkout@v7
+        with:
+          repository: Ultra-Guru/apex-standard-kit
+          ref: ${{ steps.akitpin.outputs.sha }}
+          path: Android-Guru-Agent/apex-standard-kit
+
+      - name: Read host workspace-kit pin
+        id: wkitpin
+        run: |
+          set -euo pipefail
+          cd Android-Guru-Agent
+          PIN=$(head -n 1 gradle/workspace-kit.lock 2>/dev/null || true)
+          echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout apex-workspace-kit (host composite build, pinned)
+        uses: actions/checkout@v7
+        with:
+          repository: Ultra-Guru/apex-workspace-kit
+          ref: ${{ steps.wkitpin.outputs.sha }}
+          path: Android-Guru-Agent/apex-workspace-kit
+
+      - name: Read host loom-kit pin
+        id: lkitpin
+        run: |
+          set -euo pipefail
+          cd Android-Guru-Agent
+          PIN=$(head -n 1 gradle/loom-kit.lock 2>/dev/null || true)
+          echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout apex-loom-kit (host composite build, pinned)
+        uses: actions/checkout@v7
+        with:
+          repository: Ultra-Guru/apex-loom-kit
+          ref: ${{ steps.lkitpin.outputs.sha }}
+          path: Android-Guru-Agent/apex-loom-kit
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Configure pre-installed Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "sdk.dir=$ANDROID_HOME" > Android-Guru-Agent/local.properties
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # 宿主 settings.gradle.kts 的嵌套兜底分支（apex-courier-kit 子目录）命中——
+      # composite build 把 com.apex.courierkit:courier-dispatch 替换为本仓库检出。
+      - name: Link kit into host nested fallback path
+        run: |
+          ln -s "$GITHUB_WORKSPACE/apex-courier-kit" "$GITHUB_WORKSPACE/Android-Guru-Agent/apex-courier-kit"
+          ls -la "$GITHUB_WORKSPACE/Android-Guru-Agent/apex-courier-kit"
+          if grep -q "apex-courier-kit" Android-Guru-Agent/settings.gradle.kts; then
+            echo "✅ 宿主 settings.gradle.kts 已含 apex-courier-kit 接线"
+          else
+            echo "ℹ️ 宿主尚未接线 apex-courier-kit（信使线 PR 合并前正常）——嵌套检出不生效但不阻断"
+          fi
+
+      - name: Compile host app module (Kotlin only, no APK packaging)
+        working-directory: Android-Guru-Agent
+        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace -x lint
+
+      - name: Host core module tests (kit consumer surface)
+        working-directory: Android-Guru-Agent
+        run: ./gradlew :core:code-engine:test --no-daemon

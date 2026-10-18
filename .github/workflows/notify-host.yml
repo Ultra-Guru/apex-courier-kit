@@ -1,0 +1,65 @@
+name: Notify Host
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 宿主同步通知（即时通道，同构 apex-loom-kit / apex-standard-kit）：
+#   本仓库 main 的 CI 全绿 → repository_dispatch 通知宿主
+#   Ultra-Guru/Android-Guru-Agent（event: courier-kit-updated），
+#   宿主的 sync 工作流即时 bump lock 并点燃发布流水线。
+#
+#   • 跨仓库 dispatch 需要对该宿主有写权限的 PAT（secret:
+#     HOST_DISPATCH_TOKEN）；未配置时本任务**优雅跳过**——宿主的
+#     定时轮询通道（每 30 分钟）兜底，同步链路不断。
+#   • 仅 main 上的 CI 成功会触发（PR 的绿不通知——lock 只跟 main）。
+# ═════════════════════════════════════════════════════════════════════════════
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Notify host (courier-kit-updated)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Guard on CI conclusion
+        id: guard
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.workflow_name }}" = "Notify Host" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "自触发防护 —— 跳过"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_run" ] && [ "${CONCLUSION}" != "success" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "上游 CI 结论为 ${CONCLUSION} —— 非成功不通知（lock 只跟绿提交）"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch to host repository
+        if: steps.guard.outputs.skip == 'false'
+        env:
+          HOST_DISPATCH_TOKEN: ${{ secrets.HOST_DISPATCH_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOST_DISPATCH_TOKEN}" ]; then
+            echo "ℹ️ 未配置 HOST_DISPATCH_TOKEN —— 跳过即时通知（宿主定时轮询兜底）"
+            exit 0
+          fi
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${HOST_DISPATCH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/Ultra-Guru/Android-Guru-Agent/dispatches \
+            -d '{"event_type":"courier-kit-updated","client_payload":{"head":"'"${HEAD_SHA}"'"}}'
+          echo "✅ 已通知宿主（courier-kit-updated @ ${HEAD_SHA:0:10}）"
