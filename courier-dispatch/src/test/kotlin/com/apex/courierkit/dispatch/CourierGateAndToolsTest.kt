@@ -1,9 +1,11 @@
 package com.apex.courierkit.dispatch
 
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -67,7 +69,7 @@ class CourierPermitGateTest {
     fun `悬置出票答复与批拒付`() = runTest {
         val g = gate()
         val inspection = g.inspect("code_read", """{"path":"prod.env"}""", DispatchAgentRole.BUILD, DispatchMode.BUILD)
-        assertNotNull(inspection.precomputed == null, "应当悬置")
+        assertNull(inspection.precomputed, "应当悬置")
         var heardTicket: String? = null
         var heardPrompt: String? = null
         g.askListener = { t, p ->
@@ -350,7 +352,9 @@ class CourierLocalToolsTest {
     fun `问答表单出票答复回执`() = runTest {
         val (tools, _, box) = tools()
         val events = ArrayList<DispatchEvent>()
-        val answerer = launchAnswer(box, "Use SQLite")
+        val answerer = launch {
+            answerWhenAsked(box, "Use SQLite")
+        }
         val outcome = tools.execute(
             CourierLocalTools.QUESTION,
             """{"questions":[{"header":"Storage","question":"Which store?","options":[{"label":"SQLite"},{"label":"files"}]}]}""",
@@ -366,32 +370,26 @@ class CourierLocalToolsTest {
         assertTrue(prompt.contains("- SQLite"))
     }
 
-    private fun launchAnswer(box: CourierQuestionBox, answer: String): kotlinx.coroutines.Thread {
-        // 简单双线程：工具在测试线程挂起等待，应答线程投递
-        val thread = kotlin.concurrent.thread(start = false) {
-            var spins = 0
-            while (box.current() == null && spins < 500) {
-                Thread.sleep(10)
-                spins++
-            }
+    /** 等问答案出票后应答（虚拟时钟轮询）。 */
+    private suspend fun answerWhenAsked(box: CourierQuestionBox, answer: String?) {
+        var spins = 0
+        while (box.current() == null && spins < 500) {
+            kotlinx.coroutines.delay(10)
+            spins++
+        }
+        if (answer == null) {
+            box.cancelAll()
+        } else {
             box.current()?.let { box.answer(answer) }
         }
-        thread.start()
-        return thread
     }
 
     @Test
     fun `问答取消回执为继续最佳判断`() = runTest {
         val (tools, _, box) = tools()
-        val canceller = kotlin.concurrent.thread(start = false) {
-            var spins = 0
-            while (box.current() == null && spins < 500) {
-                Thread.sleep(10)
-                spins++
-            }
-            box.cancelAll()
+        val canceller = launch {
+            answerWhenAsked(box, null)
         }
-        canceller.start()
         val outcome = tools.execute(
             CourierLocalTools.QUESTION,
             """{"questions":[{"question":"Ambiguous?"}]}""",
