@@ -69,7 +69,7 @@ class CourierPermitGateTest {
     fun `悬置出票答复与批拒付`() = runTest {
         val g = gate()
         val inspection = g.inspect("code_read", """{"path":"prod.env"}""", DispatchAgentRole.BUILD, DispatchMode.BUILD)
-        assertNull(inspection.precomputed, "应当悬置")
+        assertNull(inspection.precomputed)
         var heardTicket: String? = null
         var heardPrompt: String? = null
         g.askListener = { t, p ->
