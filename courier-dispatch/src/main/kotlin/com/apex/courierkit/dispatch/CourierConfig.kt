@@ -102,7 +102,7 @@ data class CourierConfig(
         retryBaseDelayMs = retryBaseDelayMs.coerceAtLeast(100),
         retryCapDelayMs = retryCapDelayMs.coerceAtLeast(retryBaseDelayMs),
         retryAfterCapMs = retryAfterCapMs.coerceAtLeast(retryCapDelayMs),
-        retryTransportMaxAttempts = retryTransportMaxAttempts.coerceIn(0, retryMaxAttempts),
+        retryTransportMaxAttempts = retryTransportMaxAttempts.coerceIn(0, maxOf(0, retryMaxAttempts)),
         outputLimitContinues = outputLimitContinues.coerceIn(0, 8),
         subagentDepthLimit = subagentDepthLimit.coerceAtLeast(0),
         parallelToolCalls = parallelToolCalls,

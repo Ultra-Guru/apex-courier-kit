@@ -83,7 +83,7 @@ class CourierPlanGate(
         val goal = Regex("(?im)^\\s*goal\\s*[:：]\\s*(.+)$")
             .find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
             ?: return null
-        val stepsBlock = Regex("(?ims)^\\s*steps\\s*[:：]?\\s*\\n(.+?)(?=\\n\\s*(risks\\s*[:：]|$))")
+        val stepsBlock = Regex("(?ims)^\\s*steps\\s*[:：]?\\s*\\n(.*?)(?=\\n\\s*risks\\s*[:：]|\\z)")
             .find(text)?.groupValues?.get(1)
             ?: return null
         val steps = Regex("(?m)^\\s*(?:\\d+[.、)]|[-*])\\s*(.+)$")

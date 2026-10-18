@@ -493,9 +493,12 @@ class CourierTripRunner(
         // ── 勘合 ──
         val inspection = permitGate.inspect(call.name, call.arguments, role, state.mode)
         val verdict = inspection.precomputed ?: run {
+            // 问票挂首个**严格**请求（勘验语义位——复合命令时为首段命令）
+            val semantic = inspection.requests.firstOrNull { it.strict }
+                ?: inspection.requests.firstOrNull()
             val prompt = CourierPrompts.permitAskPrompt(
-                action = inspection.requests.firstOrNull()?.action ?: "tool",
-                resource = inspection.requests.firstOrNull()?.resource ?: call.name
+                action = semantic?.action ?: "tool",
+                resource = semantic?.resource ?: call.name
             )
             val ticket = permitGate.issueTicket(inspection, prompt)
             permitGate.awaitDecision(ticket)

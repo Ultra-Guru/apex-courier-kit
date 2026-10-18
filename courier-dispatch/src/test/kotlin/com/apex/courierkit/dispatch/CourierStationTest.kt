@@ -38,16 +38,18 @@ class CourierInboxTest {
     fun `steer 不跨越控制件`() {
         val inbox = CourierInbox()
         inbox.admit(user("a"), CourierInbox.Delivery.STEER)
-        inbox.admit(CourierInbox.Item.CompactNow("c1"))
+        // 控制件落匣即置顶（后例覆盖式投递：先压缩，steer 原文保在 checkpoint 后）
+        inbox.admit(CourierInbox.Item.CompactNow(id = "c1"))
         inbox.admit(user("b"), CourierInbox.Delivery.STEER)
-        val promotion = inbox.nextPromotable()!!
-        assertEquals(listOf("a"), promotion.items.map { (it as CourierInbox.Item.UserItem).text })
-        // 控制件自成边界
+        // 首次投递：控制件自成边界（置顶先行）
         val control = inbox.nextPromotable()!!
         assertNotNull(control.control)
         assertFalse(control.resetTripCounter)
-        // 控制件之后继续
-        assertEquals(listOf("b"), inbox.nextPromotable()!!.items.map { (it as CourierInbox.Item.UserItem).text })
+        // 控制件之后：连续 steer 批整批投递
+        val promotion = inbox.nextPromotable()!!
+        assertEquals(listOf("a", "b"), promotion.items.map { (it as CourierInbox.Item.UserItem).text })
+        assertTrue(promotion.resetTripCounter)
+        assertNull(inbox.nextPromotable())
     }
 
     @Test
@@ -56,7 +58,7 @@ class CourierInboxTest {
         inbox.admit(user("early-1"), CourierInbox.Delivery.STEER)
         inbox.admit(user("early-2"), CourierInbox.Delivery.STEER)
         // 运行中途用户手动压缩 → 置顶（先压缩，steer 原文保在 checkpoint 后）
-        inbox.admit(CourierInbox.Item.CompactNow("urgent"))
+        inbox.admit(CourierInbox.Item.CompactNow(id = "c1", reason = "urgent"))
         val first = inbox.nextPromotable()!!
         assertEquals("urgent", first.control!!.reason)
         assertTrue(first.items.isEmpty())
@@ -346,7 +348,7 @@ class CourierArchivistTest {
         }
     }
 
-    private val config = CourierConfig(keepTokens = 30)
+    private val config = CourierConfig(keepTokens = 12)
     private fun estimator() = CourierHeuristicEstimator
 
     private fun archivist(client: ScriptedClient) = CourierArchivist(

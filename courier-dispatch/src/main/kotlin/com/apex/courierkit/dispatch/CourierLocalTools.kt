@@ -430,26 +430,9 @@ class CourierLocalTools(
 
     // ── Schema 常量 ──
 
-    private val TODOS_SCHEMA = """
-        {"type":"object","properties":{"todos":{"type":"array","items":{"type":"object",
-        "properties":{"content":{"type":"string"},"status":{"type":"string","enum":
-        ["pending","in_progress","done"]},"activeForm":{"type":"string"}},"required":
-        ["content","status"]}}}},"required":[]}
-    """.trimIndent().replace("\n", "")
+    private val TODOS_SCHEMA = """{"type":"object","properties":{"todos":{"type":"array","items":{"type":"object","properties":{"content":{"type":"string"},"status":{"type":"string","enum":["pending","in_progress","done"]},"activeForm":{"type":"string"}},"required":["content","status"]}}},"required":[]}"""
 
-    private val QUESTION_SCHEMA = """
-        {"type":"object","properties":{"questions":{"type":"array","items":{"type":"object",
-        "properties":{"question":{"type":"string"},"header":{"type":"string"},"options":
-        {"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},
-        "description":{"type":"string"}},"required":["label"]}},"multiple":{"type":"boolean"}}},
-        "required":["question"]}}},"required":["questions"]}
-    """.trimIndent().replace("\n", "")
+    private val QUESTION_SCHEMA = """{"type":"object","properties":{"questions":{"type":"array","items":{"type":"object","properties":{"question":{"type":"string"},"header":{"type":"string"},"options":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"description":{"type":"string"}},"required":["label"]}},"multiple":{"type":"boolean"}},"required":["question"]}}},"required":["questions"]}"""
 
-    private val TASK_SCHEMA = """
-        {"type":"object","properties":{"agent":{"type":"string","description":"sub-station
-        role id"},"description":{"type":"string","description":"short human-readable
-        summary"},"prompt":{"type":"string","description":"complete self-sufficient task
-        brief"},"background":{"type":"boolean","default":false}},"required":["agent",
-        "description","prompt"]}
-    """.trimIndent().replace("\n", "")
+    private val TASK_SCHEMA = """{"type":"object","properties":{"agent":{"type":"string","description":"sub-station role id"},"description":{"type":"string","description":"short human-readable summary"},"prompt":{"type":"string","description":"complete self-sufficient task brief"},"background":{"type":"boolean","default":false}},"required":["agent","description","prompt"]}"""
 }

@@ -327,7 +327,7 @@ data class DispatchAgentRole(
             )
         )
 
-        /** 规划者（只读主役：编辑类一律拒付，出计划不出改）。 */
+        /** 规划者（只读主役：出计划不出改——具体拒付压轴，后例覆盖通配放行）。 */
         val PLAN = DispatchAgentRole(
             id = "plan",
             name = "Planner",
@@ -335,13 +335,13 @@ data class DispatchAgentRole(
             mode = DispatchRoleMode.PRIMARY,
             steps = 50,
             permissionRules = listOf(
+                DispatchPermissionRule("*", "*", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("edit", "*", DispatchRuleEffect.DENY),
-                DispatchPermissionRule("write", "*", DispatchRuleEffect.DENY),
-                DispatchPermissionRule("*", "*", DispatchRuleEffect.ALLOW)
+                DispatchPermissionRule("write", "*", DispatchRuleEffect.DENY)
             )
         )
 
-        /** 通用子役（并行杂务：无问答、无再委派）。 */
+        /** 通用子役（并行杂务：无问答、无再委派——具体拒付压轴）。 */
         val GENERAL = DispatchAgentRole(
             id = "general",
             name = "General Hand",
@@ -349,13 +349,13 @@ data class DispatchAgentRole(
             mode = DispatchRoleMode.SUBAGENT,
             steps = 30,
             permissionRules = listOf(
+                DispatchPermissionRule("*", "*", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("ask", "*", DispatchRuleEffect.DENY),
-                DispatchPermissionRule("task", "*", DispatchRuleEffect.DENY),
-                DispatchPermissionRule("*", "*", DispatchRuleEffect.ALLOW)
+                DispatchPermissionRule("task", "*", DispatchRuleEffect.DENY)
             )
         )
 
-        /** 探查子役（只读检索专精）。 */
+        /** 探查子役（只读检索专精：拒付底 + 放行清单压轴）。 */
         val EXPLORE = DispatchAgentRole(
             id = "explore",
             name = "Scout",
@@ -368,12 +368,12 @@ data class DispatchAgentRole(
                 DispatchPermissionRule("glob", "*", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("grep", "*", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("search", "*", DispatchRuleEffect.ALLOW),
-                DispatchPermissionRule("bash", "ls*", DispatchRuleEffect.ALLOW),
-                DispatchPermissionRule("bash", "cat*", DispatchRuleEffect.ALLOW),
-                DispatchPermissionRule("bash", "head*", DispatchRuleEffect.ALLOW),
-                DispatchPermissionRule("bash", "tail*", DispatchRuleEffect.ALLOW),
-                DispatchPermissionRule("bash", "find*", DispatchRuleEffect.ALLOW),
-                DispatchPermissionRule("bash", "rg*", DispatchRuleEffect.ALLOW),
+                DispatchPermissionRule("bash", "ls *", DispatchRuleEffect.ALLOW),
+                DispatchPermissionRule("bash", "cat *", DispatchRuleEffect.ALLOW),
+                DispatchPermissionRule("bash", "head *", DispatchRuleEffect.ALLOW),
+                DispatchPermissionRule("bash", "tail *", DispatchRuleEffect.ALLOW),
+                DispatchPermissionRule("bash", "find *", DispatchRuleEffect.ALLOW),
+                DispatchPermissionRule("bash", "rg *", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("bash", "git status*", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("bash", "git log*", DispatchRuleEffect.ALLOW),
                 DispatchPermissionRule("bash", "git diff*", DispatchRuleEffect.ALLOW)

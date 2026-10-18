@@ -104,13 +104,12 @@ class CourierPermitGateTest {
         val again = g.inspect("code_read", """{"path":"prod.env"}""", DispatchAgentRole.BUILD, DispatchMode.BUILD)
         assertEquals(CourierPermitGate.PermitOutcome.Granted, again.precomputed)
         assertTrue(g.pendingTickets().isNotEmpty())
-        // 会话记忆清空后回到勘验
+        // 会话记忆清空后回到勘验（清记忆同时收口全部悬置票——t2 按超时兑现）
         g.clearSessionMemory()
         val afterClear = g.inspect("code_read", """{"path":"prod.env"}""", DispatchAgentRole.BUILD, DispatchMode.BUILD)
-        assertEquals(null, afterClear.precomputed)
-        assertEquals(1, g.pendingTickets().size) // afterClear 未开票，只剩 t2
+        assertNull(afterClear.precomputed)
+        assertTrue(g.pendingTickets().isEmpty()) // t2 已随清场收口
         g.expireAllPending()
-        assertTrue(g.pendingTickets().isEmpty())
     }
 
     @Test
@@ -149,8 +148,11 @@ class CourierPermitGateTest {
         // 基座（工具 id 伪动作）+ 三段命令
         assertEquals(4, inspection.requests.size)
         val commandRows = inspection.requests.filter { it.action == "bash" }
-        assertEquals(listOf("cat", "git push", "rm"), commandRows.map { it.resource })
-        assertEquals(listOf("cat *", "git push *", "rm *"), commandRows.map { it.savePattern })
+        assertEquals(listOf("cat /a.env", "git push", "rm -rf"), commandRows.map { it.resource })
+        assertEquals(
+            listOf("cat /a.env *", "git push *", "rm -rf *"),
+            commandRows.map { it.savePattern }
+        )
         // 构建者画像 * allow → 全放行
         assertEquals(CourierPermitGate.PermitOutcome.Granted, inspection.precomputed)
     }
