@@ -245,7 +245,7 @@ interface CourierClock {
 
     companion object {
         val System: CourierClock = object : CourierClock {
-            override fun nowMillis(): Long = System.currentTimeMillis()
+            override fun nowMillis(): Long = java.lang.System.currentTimeMillis()
         }
     }
 }
