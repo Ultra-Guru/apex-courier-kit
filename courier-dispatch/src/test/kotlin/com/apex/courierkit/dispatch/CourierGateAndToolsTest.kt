@@ -262,8 +262,13 @@ class CourierToolRuntimeTest {
         val runtime = CourierToolRuntime(config)
         val raw = "汉字汉字汉字汉字汉字汉字汉字"
         val bounded = runtime.bound(raw)
-        assertTrue(bounded.toByteArray(Charsets.UTF_8).size <= 20 + 120)
-        assertTrue(bounded.contains("[output capped"))
+        val size = bounded.toByteArray(Charsets.UTF_8).size
+        // 诊断消息：失败时输出实际尺寸与回执尾部（一次性取证后收敛）
+        assertTrue("byte size=$size (expected<=140) tail=${bounded.substringAfterLast('\n')}", size <= 140)
+        assertTrue("missing byte-cap marker: $bounded", bounded.contains("[output capped"))
+        // 不撕裂：截断点为整字符边界（6 字 = 18 字节 ≤ 20）
+        val head = bounded.substringBefore('\n')
+        assertTrue("torn head bytes=${head.toByteArray(Charsets.UTF_8).size}", head.toByteArray(Charsets.UTF_8).size <= 20)
     }
 
     @Test
