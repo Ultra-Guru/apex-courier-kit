@@ -58,14 +58,14 @@ class CourierArchivist(
             return Result(performed = false, reason = reason, failure = "history too short")
         }
         val beforeTokens = session.estimateTokens()
-        val (older, recent) = splitConversation(history)
-        if (older.isEmpty) {
+        val split = splitConversation(history)
+        if (split.older.isEmpty) {
             return Result(performed = false, reason = reason, failure = "nothing to fold")
         }
 
         // 卷宗摘要（增量调和 / 首次）
         val previousDossier = session.lastDossier.takeIf { it.isNotBlank() }
-        val transcript = flatten(older.toList(), fraction = 1.0)
+        val transcript = flatten(split.older.toList(), fraction = 1.0)
         val dossier = summarize(previousDossier, transcript)
             ?: return Result(
                 performed = false, reason = reason, beforeTokens = beforeTokens,
@@ -73,13 +73,13 @@ class CourierArchivist(
             )
 
         // 落账：卷宗信封 + 近期段逐字
-        val recentTranscript = renderRecent(recent)
+        val recentTranscript = renderRecent(split.recent)
         val envelope = CourierPrompts.dossierEnvelope(dossier, recentTranscript)
-        session.applyCheckpoint(envelope, dossier, recent)
+        session.applyCheckpoint(envelope, dossier, split.recent)
         val afterTokens = session.estimateTokens()
         logger.info(
             TAG,
-            "checkpoint applied: $reason, ${older.size} folded, " +
+            "checkpoint applied: $reason, ${split.older.size} folded, " +
                 "$beforeTokens -> $afterTokens tokens"
         )
         return Result(
@@ -87,7 +87,7 @@ class CourierArchivist(
             reason = reason,
             beforeTokens = beforeTokens,
             afterTokens = afterTokens,
-            messagesRemoved = older.size,
+            messagesRemoved = split.older.size,
             summary = dossier
         )
     }

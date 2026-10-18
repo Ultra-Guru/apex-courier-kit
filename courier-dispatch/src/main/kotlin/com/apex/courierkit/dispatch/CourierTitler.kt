@@ -59,4 +59,8 @@ class CourierTitler(
             null
         }
     }
+
+    private companion object {
+        const val TAG = "Titler"
+    }
 }

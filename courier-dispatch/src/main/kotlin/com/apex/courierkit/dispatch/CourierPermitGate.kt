@@ -31,7 +31,9 @@ class CourierPermitGate(
     private val commandProbe: CourierCommandProbe,
     private val logger: CourierLogger,
     /** 工具 id → 动作串的手工覆盖（宿主注册表口径对齐用）。 */
-    private val toolActionHints: Map<String, String> = emptyMap()
+    private val toolActionHints: Map<String, String> = emptyMap(),
+    /** 子站模式：ask 自动拒付（子驿无交互窗口——主站问答权专属）。 */
+    private val autoDenyAsks: Boolean = false
 ) {
 
     /** 一次核验请求（action × resource × always 记忆模式）。 */
@@ -116,7 +118,20 @@ class CourierPermitGate(
                 )
             }
 
-            DispatchRuleEffect.ASK -> Inspection(requests = requests, precomputed = null)
+            DispatchRuleEffect.ASK ->
+                if (autoDenyAsks) {
+                    val first = requests.first()
+                    Inspection(
+                        requests = requests,
+                        precomputed = PermitOutcome.Blocked(
+                            "Permit declined: sub-station couriers cannot ask the user " +
+                                "for permission (action '${first.action}' on '${first.resource}'). " +
+                                "Choose a different route or report back."
+                        )
+                    )
+                } else {
+                    Inspection(requests = requests, precomputed = null)
+                }
         }
     }
 
@@ -154,15 +169,30 @@ class CourierPermitGate(
         }
     }
 
-    /**
-     * 答复悬置票。
-     *
-     * @param approved true = 放行（[always] = 落记忆 + 自动复评同类悬置）
-     * @param feedback 拒绝时的纠正反馈（空串 = 纯拒付走缺陷隧道）
-     * @return true = 票存在且已兑现
-     */
+    /** 答复悬置票。 */
     fun reply(ticket: String, approved: Boolean, always: Boolean, feedback: String?): Boolean {
         val handle = pending.remove(ticket) ?: return false
+        settleReply(handle, approved, always, feedback)
+        return true
+    }
+
+    /**
+     * 答复**首张**悬置票（引擎单通道答复路由——宿主答复不携带票号；
+     * 无悬置票返回 false）。
+     */
+    fun replyFirstPending(approved: Boolean, always: Boolean, feedback: String?): Boolean {
+        val handle = pending.values.firstOrNull() ?: return false
+        pending.remove(handle.ticket)
+        settleReply(handle, approved, always, feedback)
+        return true
+    }
+
+    private fun settleReply(
+        handle: PendingTicket,
+        approved: Boolean,
+        always: Boolean,
+        feedback: String?
+    ) {
         when {
             approved && always -> {
                 val save = handle.request.savePattern ?: handle.request.resource
@@ -184,7 +214,6 @@ class CourierPermitGate(
                 handle.deferred.complete(AskDecision.Rejected(feedback))
             }
         }
-        return true
     }
 
     /** 会话收口 / 超时：全部悬置票按未决兑现（缺陷隧道）。 */

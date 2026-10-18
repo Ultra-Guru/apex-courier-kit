@@ -44,6 +44,11 @@ class CourierBulletin(private val clock: CourierClock) {
         sources += NamedSource(key, header, provider)
     }
 
+    /** 注册现成源（如内置日期源）。 */
+    fun registerSource(source: NamedSource) {
+        sources += source
+    }
+
     /**
      * 每趟前刷新：逐源读取 → 指纹比对 → 首次进基线 / 变更产更正行。
      * 源读取失败折叠为空（不阻断趟次）。

@@ -138,7 +138,7 @@ class CourierQuestionBox {
  * `courier_task` 工具的执行端口（引擎装配时由 [CourierOutpost] 实现——
  * 子驿站会话由引擎层全权管理，工具层只见请求/结果）。
  */
-interface CourierTaskLauncher {
+fun interface CourierTaskLauncher {
 
     /** 委派请求。 */
     data class TaskRequest(
@@ -238,10 +238,7 @@ class CourierLocalTools(
         TODOS -> executeTodos(arguments)
         QUESTION -> executeQuestion(arguments, emit)
         TASK -> executeTask(arguments)
-        else -> CourierToolRuntime.Outcome(
-            machine = null,
-            model = "Unknown local dispatch: $toolId"
-        )
+        else -> runtime.invalidRecept("Unknown local dispatch: $toolId")
     }
 
     // ── courier_todos ──
@@ -260,10 +257,7 @@ class CourierLocalTools(
             optional = setOf("todos")
         )
         return when (decoded) {
-            is CourierToolRuntime.Decoded.Invalid -> CourierToolRuntime.Outcome(
-                machine = null,
-                model = decoded.modelRecept
-            )
+            is CourierToolRuntime.Decoded.Invalid -> runtime.invalidRecept(decoded.modelRecept)
 
             is CourierToolRuntime.Decoded.Valid -> {
                 val rawTodos = decoded.raw["todos"] ?: decoded.fields["todos"]
@@ -272,9 +266,8 @@ class CourierLocalTools(
                 }
                 val parsed = parseTodoItems(rawTodos)
                 if (parsed == null) {
-                    CourierToolRuntime.Outcome(
-                        machine = null,
-                        model = "Invalid dispatch for $TODOS: field \"todos\" " +
+                    runtime.invalidRecept(
+                        "Invalid dispatch for $TODOS: field \"todos\" " +
                             "must be an array of {content, status, activeForm} items"
                     )
                 } else {
@@ -329,7 +322,7 @@ class CourierLocalTools(
             optional = emptySet()
         )
         if (decoded is CourierToolRuntime.Decoded.Invalid) {
-            return CourierToolRuntime.Outcome(machine = null, model = decoded.modelRecept)
+            return runtime.invalidRecept(decoded.modelRecept)
         }
         val valid = decoded as CourierToolRuntime.Decoded.Valid
         val rawQuestions = valid.raw["questions"] ?: valid.fields["questions"] ?: "[]"
@@ -399,7 +392,7 @@ class CourierLocalTools(
             optional = setOf("background")
         )
         if (decoded is CourierToolRuntime.Decoded.Invalid) {
-            return CourierToolRuntime.Outcome(machine = null, model = decoded.modelRecept)
+            return runtime.invalidRecept(decoded.modelRecept)
         }
         val fields = (decoded as CourierToolRuntime.Decoded.Valid).fields
         val result = taskLauncher.launch(

@@ -27,7 +27,9 @@ class CourierToolRuntime(private val config: CourierConfig) {
         /** 模型面文本（边界裁剪后——落账进上下文的回执正文）。 */
         val model: String,
         /** UI 摘要（JSON 串；null = 无）。 */
-        val metadata: String? = null
+        val metadata: String? = null,
+        /** 成败位（坏参数回执 = false——UI 红标，模型可见原因）。 */
+        val success: Boolean = true
     )
 
     /** 参数校验问题（至多 5 条进入回执）。 */
@@ -142,11 +144,20 @@ class CourierToolRuntime(private val config: CourierConfig) {
     fun outcome(
         machine: String?,
         model: String,
-        metadata: String? = null
+        metadata: String? = null,
+        success: Boolean = true
     ): Outcome = Outcome(
         machine = machine,
         model = bound(model),
-        metadata = metadata
+        metadata = metadata,
+        success = success
+    )
+
+    /** 坏参数回执（success=false）。 */
+    fun invalidRecept(model: String): Outcome = Outcome(
+        machine = null,
+        model = bound(model),
+        success = false
     )
 
     // ═══════════════════════════ 宿主工具流经手 ═══════════════════════════
