@@ -154,7 +154,7 @@ class CourierToolRuntime(private val config: CourierConfig) {
         }
         val head = byLines.take(charCut)
         val total = bytes.size
-        return "$head\n[output capped at $config.outputByteLimit bytes of $total — remainder elided]"
+        return "$head\n[output capped at ${config.outputByteLimit} bytes of $total — remainder elided]"
     }
 
     /** 便捷：三值回执构造（machine 默认 stringify）。 */
