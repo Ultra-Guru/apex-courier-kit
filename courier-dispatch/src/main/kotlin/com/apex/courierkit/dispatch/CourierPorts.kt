@@ -60,7 +60,7 @@ fun interface CourierToolSource {
 }
 
 /** 工具执行端口（流式——进度与增量输出全程可见）。 */
-interface CourierToolRunner {
+fun interface CourierToolRunner {
     fun executeStream(toolId: String, arguments: String): Flow<DispatchToolStream>
 }
 

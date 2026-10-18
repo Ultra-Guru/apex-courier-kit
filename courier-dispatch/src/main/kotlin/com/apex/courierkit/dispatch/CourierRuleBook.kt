@@ -52,13 +52,14 @@ object CourierRuleBook {
     }
 
     /**
-     * 单则例匹配判定（action 与 resource 双匹配）。
+     * 单则例匹配判定（action 与 resource 双匹配；`*` 动作通配任意）。
      */
     fun ruleMatches(
         rule: DispatchPermissionRule,
         action: String,
         resource: String
-    ): Boolean = rule.action == action && matches(rule.resource, resource)
+    ): Boolean = (rule.action == "*" || rule.action == action) &&
+        matches(rule.resource, resource)
 
     /**
      * 评估：则例列表中**最后一条**同时匹配 action 与 resource 者生效；

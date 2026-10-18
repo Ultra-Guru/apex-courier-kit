@@ -233,7 +233,7 @@ class CourierLocalTools(
     suspend fun execute(
         toolId: String,
         arguments: String,
-        emit: (DispatchEvent) -> Unit
+        emit: suspend (DispatchEvent) -> Unit
     ): CourierToolRuntime.Outcome = when (toolId) {
         TODOS -> executeTodos(arguments)
         QUESTION -> executeQuestion(arguments, emit)
@@ -313,7 +313,7 @@ class CourierLocalTools(
 
     private suspend fun executeQuestion(
         arguments: String,
-        emit: (DispatchEvent) -> Unit
+        emit: suspend (DispatchEvent) -> Unit
     ): CourierToolRuntime.Outcome {
         val decoded = runtime.decode(
             toolName = QUESTION,

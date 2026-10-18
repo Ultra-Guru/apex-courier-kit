@@ -40,7 +40,12 @@ class CourierPermitGate(
     data class PermitRequest(
         val action: String,
         val resource: String,
-        val savePattern: String? = null
+        val savePattern: String? = null,
+        /**
+         * 严格位：false = 工具 id 伪动作通道（无命中则例时**不参与聚合**
+         * ——只有显式命中的工具 id 规则才生效，避免把全部工具问成勘验）。
+         */
+        val strict: Boolean = true
     )
 
     /** 核验结论。 */
@@ -102,17 +107,26 @@ class CourierPermitGate(
             return Inspection(requests = emptyList(), precomputed = PermitOutcome.Granted)
         }
         val rules = stackedRules(role)
-        val effects = requests.map { CourierRuleBook.evaluate(rules, it.action, it.resource) }
+        val evaluated = requests.map {
+            it to CourierRuleBook.evaluate(rules, it.action, it.resource)
+        }.filterNot { (req, eff) ->
+            // 非严格（工具 id 通道）未命中 → 不参与聚合
+            !req.strict && eff == DispatchRuleEffect.ASK
+        }
+        if (evaluated.isEmpty()) {
+            return Inspection(requests = requests, precomputed = PermitOutcome.Granted)
+        }
+        val effects = evaluated.map { it.second }
         return when (CourierRuleBook.aggregate(effects)) {
             DispatchRuleEffect.ALLOW ->
                 Inspection(requests = requests, precomputed = PermitOutcome.Granted)
 
             DispatchRuleEffect.DENY -> {
-                val first = requests[effects.indexOf(DispatchRuleEffect.DENY)]
+                val denied = evaluated.first { it.second == DispatchRuleEffect.DENY }.first
                 Inspection(
                     requests = requests,
                     precomputed = PermitOutcome.Blocked(
-                        "Permit denied: action '${first.action}' on '${first.resource}' " +
+                        "Permit denied: action '${denied.action}' on '${denied.resource}' " +
                             "is blocked by the standing rules"
                     )
                 )
@@ -120,7 +134,7 @@ class CourierPermitGate(
 
             DispatchRuleEffect.ASK ->
                 if (autoDenyAsks) {
-                    val first = requests.first()
+                    val first = evaluated.first().first
                     Inspection(
                         requests = requests,
                         precomputed = PermitOutcome.Blocked(
@@ -141,11 +155,15 @@ class CourierPermitGate(
      */
     fun issueTicket(inspection: Inspection, prompt: String): PendingTicket {
         val ticket = "permit-${ticketSeq.incrementAndGet()}"
+        // 票据挂首个**严格**请求（勘验语义位）；无严格位回退基座
+        val request = inspection.requests.firstOrNull { it.strict }
+            ?: inspection.requests.firstOrNull()
+            ?: PermitRequest("ask", "*")
         val handle = PendingTicket(
             ticket = ticket,
             prompt = prompt,
             deferred = CompletableDeferred(),
-            request = inspection.requests.firstOrNull() ?: PermitRequest("ask", "*")
+            request = request
         )
         pending[ticket] = handle
         logger.info(TAG, "permit ask issued: $ticket for ${handle.request.action}:${handle.request.resource}")
@@ -261,10 +279,17 @@ class CourierPermitGate(
         role: DispatchAgentRole,
         mode: DispatchMode
     ): List<PermitRequest> {
-        val action = classifyAction(toolId) ?: return emptyList()
+        // 基座：工具 id 伪动作通道（非严格——宿主工具 id 型规则映射位）
+        val base = PermitRequest(
+            action = TOOL_ACTION,
+            resource = toolId,
+            savePattern = toolId,
+            strict = false
+        )
+        val action = classifyAction(toolId) ?: return listOf(base)
         val command = commandProbe.commandOf(toolId, arguments)
-        return if (command != null) {
-            // 终端类：复合命令逐段核验 + 会话命令则例并入
+        val commandRows = if (command != null) {
+            // 终端类：复合命令逐段核验
             val subs = CourierCommandSplitter.split(command)
             if (subs.isEmpty()) {
                 listOf(PermitRequest(action, toolId, savePattern = toolId))
@@ -275,6 +300,7 @@ class CourierPermitGate(
             val resource = resourceFor(toolId, arguments)
             listOf(PermitRequest(action, resource, savePattern = resource))
         }
+        return listOf(base) + commandRows
     }
 
     /** 工具 id → 动作串（分类器：宿主注册表命名口径 + 手工覆盖）。 */
@@ -385,5 +411,8 @@ class CourierPermitGate(
 
     private companion object {
         const val TAG = "PermitGate"
+
+        /** 工具 id 伪动作串（宿主工具 id 型规则映射通道）。 */
+        const val TOOL_ACTION = "tool"
     }
 }

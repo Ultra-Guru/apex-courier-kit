@@ -144,12 +144,27 @@ class CourierPermitGateTest {
             "ShellExecute", """{"command":"whatever"}""",
             DispatchAgentRole.BUILD, DispatchMode.BUILD
         )
-        // 三段：cat /a.env / git push / rm
-        assertEquals(3, inspection.requests.size)
-        assertEquals(listOf("cat", "git push", "rm"), inspection.requests.map { it.resource })
-        assertEquals(listOf("cat *", "git push *", "rm *"), inspection.requests.map { it.savePattern })
+        // 基座（工具 id 伪动作）+ 三段命令
+        assertEquals(4, inspection.requests.size)
+        val commandRows = inspection.requests.filter { it.action == "bash" }
+        assertEquals(listOf("cat", "git push", "rm"), commandRows.map { it.resource })
+        assertEquals(listOf("cat *", "git push *", "rm *"), commandRows.map { it.savePattern })
         // 构建者画像 * allow → 全放行
         assertEquals(CourierPermitGate.PermitOutcome.Granted, inspection.precomputed)
+    }
+
+    @Test
+    fun `工具 id 伪动作通道承载宿主规则`() {
+        // 宿主工具 id 型规则（无空格模式）：deny code_edit* → 整个工具拒付
+        val snapshot = FixedSnapshot(
+            listOf(DispatchPermissionRule("tool", "code_edit*", DispatchRuleEffect.DENY))
+        )
+        val g = gate(snapshot)
+        val blocked = g.inspect("code_edit", """{"path":"x.kt"}""", DispatchAgentRole.BUILD, DispatchMode.BUILD)
+        assertTrue(blocked.precomputed is CourierPermitGate.PermitOutcome.Blocked)
+        // 未命中工具规则的其它工具不受影响
+        val ok = g.inspect("code_read", """{"path":"y.kt"}""", DispatchAgentRole.BUILD, DispatchMode.BUILD)
+        assertEquals(CourierPermitGate.PermitOutcome.Granted, ok.precomputed)
     }
 
     @Test
@@ -166,10 +181,11 @@ class CourierPermitGateTest {
     }
 
     @Test
-    fun `未分类工具不核勘合`() {
+    fun `未分类工具只走基座通道`() {
         val g = gate()
         val inspection = g.inspect("some_custom_tool", "{}", DispatchAgentRole.BUILD, DispatchMode.BUILD)
-        assertEquals(0, inspection.requests.size)
+        // 基座（非严格）命中画像 * allow → 放行
+        assertEquals(1, inspection.requests.size)
         assertEquals(CourierPermitGate.PermitOutcome.Granted, inspection.precomputed)
     }
 
