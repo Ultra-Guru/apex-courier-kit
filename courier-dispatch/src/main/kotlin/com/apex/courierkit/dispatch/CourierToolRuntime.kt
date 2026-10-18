@@ -168,7 +168,7 @@ class CourierToolRuntime(private val config: CourierConfig) {
      */
     suspend fun relayHostStream(
         source: Flow<DispatchToolStream>,
-        sink: (DispatchToolStream) -> Unit
+        sink: suspend (DispatchToolStream) -> Unit
     ): RelayFinal {
         val buffer = StringBuilder()
         var finalOutput: String? = null
