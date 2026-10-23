@@ -15,5 +15,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "apex-courier-kit"
+rootProject.name = "apex-kit-courier"
 include(":courier-dispatch")

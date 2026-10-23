@@ -1,4 +1,4 @@
-# apex-courier-kit
+# apex-kit-courier
 
 **Pure-Kotlin dispatch-relay agent-loop engine（`courier-dispatch`）** —— 信使
 思考逻辑线：收发匣投递语义 · 趟次步进机 · 勘合通行证 · 档房压缩 · 下站
@@ -30,7 +30,7 @@ Coding 模式作为可切换的思考逻辑线消费。
 
 ```kotlin
 // settings.gradle.kts（composite build）
-includeBuild("apex-courier-kit")
+includeBuild("apex-kit-courier")
 
 // 消费方
 implementation("com.apex.courierkit:courier-dispatch:1.0.0")

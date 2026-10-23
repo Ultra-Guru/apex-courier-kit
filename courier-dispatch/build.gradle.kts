@@ -36,14 +36,14 @@ mavenPublishing {
         version = project.version.toString(),
     )
     pom {
-        name.set("Apex Courier Kit :: Courier Dispatch")
+        name.set("Apex Kit Courier :: Courier Dispatch")
         description.set(
             "Pure-Kotlin dispatch-relay agent-loop engine: inbox steer/queue semantics, " +
                 "trip step machine with parallel tool tracks, permit-pattern signal gate, " +
                 "structured trip-log compaction and child-station subagents for mobile " +
                 "coding workspaces (zero Android deps)"
         )
-        url.set("https://github.com/Ultra-Guru/apex-courier-kit")
+        url.set("https://github.com/Ultra-Guru/apex-kit-courier")
         licenses {
             license {
                 name.set("MIT")
@@ -51,11 +51,11 @@ mavenPublishing {
             }
         }
         developers {
-            developer { id.set("AceGuru-mjh") }
+            developer { id.set("Ultra-Guru") }
         }
         scm {
-            connection.set("scm:git:git@github.com:Ultra-Guru/apex-courier-kit.git")
-            url.set("https://github.com/Ultra-Guru/apex-courier-kit")
+            connection.set("scm:git:git@github.com:Ultra-Guru/apex-kit-courier.git")
+            url.set("https://github.com/Ultra-Guru/apex-kit-courier")
         }
     }
 }
