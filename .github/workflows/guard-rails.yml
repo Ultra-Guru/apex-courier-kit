@@ -1,7 +1,7 @@
 name: Guard Rails
 
 # ═════════════════════════════════════════════════════════════════════════════
-# apex-kit-courier 护栏双查（同构 apex-kit-loom / apex-standard-kit）：
+# apex-kit-courier 护栏双查（同构 apex-kit-loom / apex-kit-standard）：
 #   1. vocabulary-scan：禁用词零容忍——本库为避让上游项目词汇的改名衍生，
 #      源码 / 文档 / 工作流 / 提交相关文件中不得出现该词汇的任何大小写与
 #      分隔符形态（拼接构造 pattern，本文件自身不出现字面量）。

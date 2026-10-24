@@ -1,7 +1,7 @@
 name: Notify Host
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 宿主同步通知（即时通道，同构 apex-loom-kit / apex-standard-kit）：
+# 宿主同步通知（即时通道，同构 apex-kit-loom / apex-kit-standard）：
 #   本仓库 main 的 CI 全绿 → repository_dispatch 通知宿主
 #   Ultra-Guru/Android-Guru-Agent（event: courier-kit-updated），
 #   宿主的 sync 工作流即时 bump lock 并点燃发布流水线。

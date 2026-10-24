@@ -1,6 +1,6 @@
 name: CI
 
-# apex-kit-courier CI —— 两道防线（同构 apex-kit-loom / apex-standard-kit）：
+# apex-kit-courier CI —— 两道防线（同构 apex-kit-loom / apex-kit-standard）：
 #   1. build-test：库自身编译 + 单测 + publishToMavenLocal 可发布性
 #   2. consumer-check：跨仓库验证宿主 Android-Guru-Agent 仍能编译（防下游崩）
 #      —— 迁移期 workflow_dispatch 手动触发（宿主 main 尚未消费本库；
@@ -102,12 +102,12 @@ jobs:
           PIN=$(head -n 1 gradle/browser-kit.lock 2>/dev/null || true)
           echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout apex-browser-kit (host composite build, pinned)
+      - name: Checkout apex-kit-browser (host composite build, pinned)
         uses: actions/checkout@v7
         with:
-          repository: Ultra-Guru/apex-browser-kit
+          repository: Ultra-Guru/apex-kit-browser
           ref: ${{ steps.bkitpin.outputs.sha }}
-          path: Android-Guru-Agent/apex-browser-kit
+          path: Android-Guru-Agent/apex-kit-browser
 
       - name: Read host standard-kit pin
         id: akitpin
@@ -117,12 +117,12 @@ jobs:
           PIN=$(head -n 1 gradle/standard-kit.lock 2>/dev/null || true)
           echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout apex-standard-kit (host composite build, pinned)
+      - name: Checkout apex-kit-standard (host composite build, pinned)
         uses: actions/checkout@v7
         with:
-          repository: Ultra-Guru/apex-standard-kit
+          repository: Ultra-Guru/apex-kit-standard
           ref: ${{ steps.akitpin.outputs.sha }}
-          path: Android-Guru-Agent/apex-standard-kit
+          path: Android-Guru-Agent/apex-kit-standard
 
       - name: Read host workspace-kit pin
         id: wkitpin
@@ -132,12 +132,12 @@ jobs:
           PIN=$(head -n 1 gradle/workspace-kit.lock 2>/dev/null || true)
           echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout apex-workspace-kit (host composite build, pinned)
+      - name: Checkout apex-kit-workspace (host composite build, pinned)
         uses: actions/checkout@v7
         with:
-          repository: Ultra-Guru/apex-workspace-kit
+          repository: Ultra-Guru/apex-kit-workspace
           ref: ${{ steps.wkitpin.outputs.sha }}
-          path: Android-Guru-Agent/apex-workspace-kit
+          path: Android-Guru-Agent/apex-kit-workspace
 
       - name: Read host loom-kit pin
         id: lkitpin
@@ -147,12 +147,12 @@ jobs:
           PIN=$(head -n 1 gradle/loom-kit.lock 2>/dev/null || true)
           echo "sha=${PIN:-main}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout apex-loom-kit (host composite build, pinned)
+      - name: Checkout apex-kit-loom (host composite build, pinned)
         uses: actions/checkout@v7
         with:
-          repository: Ultra-Guru/apex-loom-kit
+          repository: Ultra-Guru/apex-kit-loom
           ref: ${{ steps.lkitpin.outputs.sha }}
-          path: Android-Guru-Agent/apex-loom-kit
+          path: Android-Guru-Agent/apex-kit-loom
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
